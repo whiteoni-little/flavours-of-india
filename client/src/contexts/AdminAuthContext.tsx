@@ -56,12 +56,25 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        return {
+          success: false,
+          error:
+            res.status === 500
+              ? "Server initialization in progress. Please retry in a few seconds."
+              : text || `Authentication server error (${res.status})`,
+        };
+      }
 
       if (!res.ok) {
         return {
           success: false,
-          error: data.message || data.error || "Login failed",
+          error: data.message || data.error || "Login failed. Please check credentials.",
         };
       }
 

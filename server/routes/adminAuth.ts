@@ -48,7 +48,15 @@ adminAuthRouter.post("/login", async (req, res) => {
             password,
           });
 
-        if (!authError && authData?.user && authData.session) {
+        if (authError) {
+          console.warn("[AUTH] Supabase signIn failed:", authError.message);
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "Invalid email or password. Please verify your credentials.",
+          });
+        }
+
+        if (authData?.user && authData.session) {
           const user = authData.user;
 
           // Check user role in profiles table or user_metadata

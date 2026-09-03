@@ -39,27 +39,39 @@ import type {
 
 export class DatabaseService {
   private db: Database.Database;
+  private memorySessions = new Map<
+    string,
+    { session: AdminSession; user: AdminUser }
+  >();
 
   constructor(dbPath?: string) {
-    const defaultPath = process.env.VERCEL
-      ? path.join("/tmp", "flavours.db")
-      : path.join(process.cwd(), "data", "flavours.db");
-    const targetPath = dbPath || process.env.SQLITE_DB_PATH || defaultPath;
-    if (targetPath !== ":memory:") {
-      const dir = path.dirname(targetPath);
-      if (!fs.existsSync(dir)) {
-        try {
-          fs.mkdirSync(dir, { recursive: true });
-        } catch {
-          // Ignore mkdir errors if directory exists or in read-only environment
+    try {
+      const defaultPath = process.env.VERCEL
+        ? path.join("/tmp", "flavours.db")
+        : path.join(process.cwd(), "data", "flavours.db");
+      const targetPath = dbPath || process.env.SQLITE_DB_PATH || defaultPath;
+      if (targetPath !== ":memory:") {
+        const dir = path.dirname(targetPath);
+        if (!fs.existsSync(dir)) {
+          try {
+            fs.mkdirSync(dir, { recursive: true });
+          } catch {
+            // Ignore mkdir errors if directory exists or in read-only environment
+          }
         }
       }
+      this.db = new Database(targetPath);
+      this.db.pragma("busy_timeout = 5000");
+      this.db.pragma("journal_mode = WAL");
+      this.db.pragma("foreign_keys = ON");
+      this.migrateSqlite();
+    } catch (err: any) {
+      console.warn(
+        "[DB] Local SQLite unavailable, using Supabase and in-memory session store:",
+        err?.message
+      );
+      this.db = null as any;
     }
-    this.db = new Database(targetPath);
-    this.db.pragma("busy_timeout = 5000");
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("foreign_keys = ON");
-    this.migrateSqlite();
   }
 
   /**
@@ -627,90 +639,130 @@ export class DatabaseService {
     const id = nanoid(32);
     const now = new Date().toISOString();
 
-    // Ensure user exists in local admin_users table to satisfy foreign key
-    const existing = this.db
-      .prepare("SELECT id FROM admin_users WHERE id = ?")
-      .get(adminUserId);
-
-    if (!existing) {
-      this.db
-        .prepare(
-          `INSERT OR IGNORE INTO admin_users (id, email, password_hash, name, role, created_at, updated_at)
-           VALUES (?, ?, '', ?, ?, ?, ?)`
-        )
-        .run(
-          adminUserId,
-          userInfo?.email || `${adminUserId}@supabase.user`,
-          userInfo?.name || "Admin",
-          userInfo?.role || "admin",
-          now,
-          now
-        );
-    }
-
-    this.db
-      .prepare(
-        `
-      INSERT INTO admin_sessions (id, admin_user_id, expires_at, created_at)
-      VALUES (?, ?, ?, ?)
-    `
-      )
-      .run(id, adminUserId, expiresAt.toISOString(), now);
-
-    return {
+    const sessionObj: AdminSession = {
       id,
       adminUserId,
       expiresAt: expiresAt.toISOString(),
       createdAt: now,
     };
+
+    const userObj: AdminUser = {
+      id: adminUserId,
+      email: userInfo?.email || `${adminUserId}@flavoursofindia.com`,
+      name: userInfo?.name || "Admin",
+      role: userInfo?.role || "admin",
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: null,
+    };
+
+    this.memorySessions.set(id, { session: sessionObj, user: userObj });
+
+    if (this.db) {
+      try {
+        const existing = this.db
+          .prepare("SELECT id FROM admin_users WHERE id = ?")
+          .get(adminUserId);
+
+        if (!existing) {
+          this.db
+            .prepare(
+              `INSERT OR IGNORE INTO admin_users (id, email, password_hash, name, role, created_at, updated_at)
+               VALUES (?, ?, '', ?, ?, ?, ?)`
+            )
+            .run(
+              adminUserId,
+              userInfo?.email || `${adminUserId}@supabase.user`,
+              userInfo?.name || "Admin",
+              userInfo?.role || "admin",
+              now,
+              now
+            );
+        }
+
+        this.db
+          .prepare(
+            `
+          INSERT INTO admin_sessions (id, admin_user_id, expires_at, created_at)
+          VALUES (?, ?, ?, ?)
+        `
+          )
+          .run(id, adminUserId, expiresAt.toISOString(), now);
+      } catch (err) {
+        console.warn("[DB] SQLite session write skipped:", err);
+      }
+    }
+
+    return sessionObj;
   }
 
   public async getAdminSession(
     sessionId: string
   ): Promise<{ session: AdminSession; user: AdminUser } | null> {
-    const row = this.db
-      .prepare(
-        `
-      SELECT s.id as session_id, s.admin_user_id, s.expires_at, s.created_at as session_created_at,
-             u.id as user_id, u.email, u.name, u.role, u.password_hash, u.created_at as user_created_at,
-             u.updated_at as user_updated_at, u.last_login_at
-      FROM admin_sessions s
-      JOIN admin_users u ON u.id = s.admin_user_id
-      WHERE s.id = ?
-    `
-      )
-      .get(sessionId) as any;
-
-    if (!row) return null;
-
-    const expiresAt = new Date(row.expires_at);
-    if (expiresAt.getTime() <= Date.now()) {
-      this.deleteAdminSession(sessionId);
+    const memory = this.memorySessions.get(sessionId);
+    if (memory) {
+      const expiresAt = new Date(memory.session.expiresAt);
+      if (expiresAt.getTime() > Date.now()) {
+        return memory;
+      }
+      this.memorySessions.delete(sessionId);
       return null;
     }
 
-    return {
-      session: {
-        id: row.session_id,
-        adminUserId: row.admin_user_id,
-        expiresAt: row.expires_at,
-        createdAt: row.session_created_at,
-      },
-      user: {
-        id: row.user_id,
-        email: row.email,
-        passwordHash: row.password_hash,
-        name: row.name,
-        role: row.role as UserRole,
-        createdAt: row.user_created_at,
-        updatedAt: row.user_updated_at,
-        lastLoginAt: row.last_login_at,
-      },
-    };
+    if (!this.db) return null;
+
+    try {
+      const row = this.db
+        .prepare(
+          `
+        SELECT s.id as session_id, s.admin_user_id, s.expires_at, s.created_at as session_created_at,
+               u.id as user_id, u.email, u.name, u.role, u.password_hash, u.created_at as user_created_at,
+               u.updated_at as user_updated_at, u.last_login_at
+        FROM admin_sessions s
+        JOIN admin_users u ON u.id = s.admin_user_id
+        WHERE s.id = ?
+      `
+        )
+        .get(sessionId) as any;
+
+      if (!row) return null;
+
+      const expiresAt = new Date(row.expires_at);
+      if (expiresAt.getTime() <= Date.now()) {
+        this.deleteAdminSession(sessionId);
+        return null;
+      }
+
+      return {
+        session: {
+          id: row.session_id,
+          adminUserId: row.admin_user_id,
+          expiresAt: row.expires_at,
+          createdAt: row.session_created_at,
+        },
+        user: {
+          id: row.user_id,
+          email: row.email,
+          passwordHash: row.password_hash,
+          name: row.name,
+          role: row.role as UserRole,
+          createdAt: row.user_created_at,
+          updatedAt: row.user_updated_at,
+          lastLoginAt: row.last_login_at,
+        },
+      };
+    } catch {
+      return null;
+    }
   }
 
   public async deleteAdminSession(sessionId: string): Promise<void> {
-    this.db.prepare("DELETE FROM admin_sessions WHERE id = ?").run(sessionId);
+    this.memorySessions.delete(sessionId);
+    if (this.db) {
+      try {
+        this.db.prepare("DELETE FROM admin_sessions WHERE id = ?").run(sessionId);
+      } catch {}
+    }
   }
 
   // ==========================================================================
