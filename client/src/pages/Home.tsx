@@ -3,6 +3,8 @@ import { ArrowRight, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
 import { useCart } from "@/contexts/CartContext";
 
+import SiteFooter from "@/components/SiteFooter";
+
 const logo = "/manus-storage/flavours-of-india-logo_4e9a9073.png";
 const heroImages = [
   "/manus-storage/hero-pantry_47065533.jpg",
@@ -34,7 +36,7 @@ export default function Home() {
   return (
     <div className="site-shell">
       <div className="announcement">
-        <Sparkles size={13} /> A little taste of home, a lot of happiness.
+        <Sparkles size={13} /> A little taste of home, a lot of happiness • Handcrafted in Ganjam, Odisha
       </div>
       <header className="site-header container">
         <Link href="/" className="brand-lockup">
@@ -43,13 +45,16 @@ export default function Home() {
         </Link>
         <nav className={open ? "main-nav is-open" : "main-nav"}>
           <Link href="/collection" onClick={() => setOpen(false)}>
-            The collection
+            The Collection
+          </Link>
+          <Link href="/blog" onClick={() => setOpen(false)}>
+            Pantry Journal
+          </Link>
+          <Link href="/track-order" onClick={() => setOpen(false)}>
+            Track Order
           </Link>
           <a href="#story" onClick={() => setOpen(false)}>
-            Our story
-          </a>
-          <a href="#journal" onClick={() => setOpen(false)}>
-            Journal
+            Our Story
           </a>
         </nav>
         <div className="header-actions">
@@ -264,13 +269,13 @@ export default function Home() {
               a little place, a little memory, and a lot of heart. Then we bring
               them closer to you.
             </p>
-            <a href="#journal" className="text-link">
-              Read our story <ArrowRight size={16} />
-            </a>
+            <Link href="/blog" className="text-link">
+              Read Pantry Journal <ArrowRight size={16} />
+            </Link>
           </div>
           <div className="story-aside">
             <span>Rooted in</span>
-            <strong>Odisha</strong>
+            <strong>Ganjam, Odisha</strong>
             <span>Shared with</span>
             <strong>everyone</strong>
           </div>
@@ -288,42 +293,27 @@ export default function Home() {
             </div>
             <form
               className="newsletter-form"
-              onSubmit={e => e.preventDefault()}
+              onSubmit={e => {
+                e.preventDefault();
+                alert("Thank you for subscribing to our pantry stories!");
+              }}
             >
               <label htmlFor="email">Your email address</label>
               <div>
-                <input id="email" type="email" placeholder="you@example.com" />
+                <input id="email" type="email" placeholder="you@example.com" required />
                 <button className="primary-button" type="submit">
                   Keep me posted <ArrowRight size={17} />
                 </button>
               </div>
               <small>
-                No noise. Just new flavours, stories, and first dibs.
+                No noise. Just new flavours, stories from Ganjam, and first dibs.
               </small>
             </form>
           </div>
         </section>
       </main>
 
-      <footer className="site-footer container">
-        <div className="footer-brand">
-          <img src={logo} alt="Flavours of India" />
-          <p>
-            A little taste of home,
-            <br />a lot of happiness.
-          </p>
-        </div>
-        <div className="footer-links">
-          <Link href="/collection">Shop</Link>
-          <a href="#story">Our story</a>
-          <a href="#journal">Contact</a>
-        </div>
-        <div className="footer-note">
-          © 2026 Flavours of India
-          <br />
-          Made for sharing.
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

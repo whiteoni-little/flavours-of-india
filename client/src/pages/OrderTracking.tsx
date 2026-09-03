@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import SiteFooter from "@/components/SiteFooter";
 
 interface OrderTrackingData {
   orderNumber: string;
@@ -246,10 +247,39 @@ export default function OrderTracking() {
                   </div>
                 ))}
               </div>
+
+              {/* Return Policy notice */}
+              <div
+                style={{
+                  marginTop: "24px",
+                  padding: "14px 16px",
+                  background: "var(--sunken)",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  color: "var(--secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                }}
+              >
+                <span>
+                  📦 <strong>Need help with this delivery?</strong> Returns accepted within 3 days of delivery with continuous unboxing video.
+                </span>
+                <Link
+                  href="/return-policy"
+                  style={{ color: "var(--terracotta)", fontWeight: 600, textDecoration: "none" }}
+                >
+                  View Policy →
+                </Link>
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

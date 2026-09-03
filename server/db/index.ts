@@ -1,4 +1,3 @@
-import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
@@ -37,8 +36,19 @@ import type {
   UserRole,
 } from "./schema";
 
+// Dynamically load SQLite only when running locally, avoiding serverless native addon crashes
+let DatabaseDriver: any = null;
+if (typeof process !== "undefined" && !process.env.VERCEL) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    DatabaseDriver = require("better-sqlite3");
+  } catch {
+    DatabaseDriver = null;
+  }
+}
+
 export class DatabaseService {
-  private db: Database.Database;
+  private db: any = null;
   private memorySessions = new Map<
     string,
     { session: AdminSession; user: AdminUser }
@@ -46,31 +56,35 @@ export class DatabaseService {
 
   constructor(dbPath?: string) {
     try {
-      const defaultPath = process.env.VERCEL
-        ? path.join("/tmp", "flavours.db")
-        : path.join(process.cwd(), "data", "flavours.db");
-      const targetPath = dbPath || process.env.SQLITE_DB_PATH || defaultPath;
-      if (targetPath !== ":memory:") {
-        const dir = path.dirname(targetPath);
-        if (!fs.existsSync(dir)) {
-          try {
-            fs.mkdirSync(dir, { recursive: true });
-          } catch {
-            // Ignore mkdir errors if directory exists or in read-only environment
+      if (DatabaseDriver) {
+        const defaultPath = process.env.VERCEL
+          ? path.join("/tmp", "flavours.db")
+          : path.join(process.cwd(), "data", "flavours.db");
+        const targetPath = dbPath || process.env.SQLITE_DB_PATH || defaultPath;
+        if (targetPath !== ":memory:") {
+          const dir = path.dirname(targetPath);
+          if (!fs.existsSync(dir)) {
+            try {
+              fs.mkdirSync(dir, { recursive: true });
+            } catch {
+              // Ignore mkdir errors in read-only environments
+            }
           }
         }
+        this.db = new DatabaseDriver(targetPath);
+        this.db.pragma("busy_timeout = 5000");
+        this.db.pragma("journal_mode = WAL");
+        this.db.pragma("foreign_keys = ON");
+        this.migrateSqlite();
+      } else {
+        this.db = null;
       }
-      this.db = new Database(targetPath);
-      this.db.pragma("busy_timeout = 5000");
-      this.db.pragma("journal_mode = WAL");
-      this.db.pragma("foreign_keys = ON");
-      this.migrateSqlite();
     } catch (err: any) {
       console.warn(
         "[DB] Local SQLite unavailable, using Supabase and in-memory session store:",
         err?.message
       );
-      this.db = null as any;
+      this.db = null;
     }
   }
 

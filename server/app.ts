@@ -20,6 +20,14 @@ export function createApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Normalize request URLs so both /api/... and /... match seamlessly
+  app.use((req, _res, next) => {
+    if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/assets") && !req.url.startsWith("/favicon")) {
+      req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
+    }
+    next();
+  });
+
   // Admin Operations Endpoints
   app.use("/api/admin/auth", adminAuthRouter);
   app.use("/api/admin/products", adminProductsRouter);

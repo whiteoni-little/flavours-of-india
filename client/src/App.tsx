@@ -10,13 +10,19 @@ import AdminNotifications from "@/pages/AdminNotifications";
 import AdminOrders from "@/pages/AdminOrders";
 import AdminProducts from "@/pages/AdminProducts";
 import AdminUsers from "@/pages/AdminUsers";
+import Blog from "@/pages/Blog";
+import BlogPost from "@/pages/BlogPost";
 import Cart from "@/pages/Cart";
 import Collection from "@/pages/Collection";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
 import OrderConfirmation from "@/pages/OrderConfirmation";
 import OrderTracking from "@/pages/OrderTracking";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import ProductDetail from "@/pages/ProductDetail";
+import ReturnPolicy from "@/pages/ReturnPolicy";
+import ShippingPolicy from "@/pages/ShippingPolicy";
+import TermsConditions from "@/pages/TermsConditions";
 
 function ProtectedAdminRoute({
   component: Component,
@@ -62,6 +68,18 @@ export default function App() {
           <Route path="/cart" component={Cart} />
           <Route path="/order-confirmation/:orderNumber" component={OrderConfirmation} />
           <Route path="/track-order" component={OrderTracking} />
+
+          {/* Pantry Journal & Blog */}
+          <Route path="/blog" component={Blog} />
+          <Route path="/journal" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
+
+          {/* Store & Customer Policies */}
+          <Route path="/return-policy" component={ReturnPolicy} />
+          <Route path="/refund-policy" component={ReturnPolicy} />
+          <Route path="/privacy-policy" component={PrivacyPolicy} />
+          <Route path="/terms" component={TermsConditions} />
+          <Route path="/shipping-policy" component={ShippingPolicy} />
 
           {/* Admin Authentication */}
           <Route path="/admin/login" component={AdminLogin} />

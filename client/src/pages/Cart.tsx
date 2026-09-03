@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import CheckoutModal from "@/components/CheckoutModal";
+import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 
 const defaultImg = "/manus-storage/product-pickle_c9669039.jpg";
@@ -261,6 +262,20 @@ export default function Cart() {
           >
             Proceed to Checkout <ArrowRight size={18} />
           </button>
+
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "14px",
+              background: "var(--sunken)",
+              borderRadius: "6px",
+              fontSize: "12px",
+              color: "var(--secondary)",
+              lineHeight: "1.6",
+            }}
+          >
+            🛡️ <strong>Store Assured:</strong> 3-Day Return window &amp; 7-Day Refund. Dispatched directly from Ganjam, Odisha.
+          </div>
         </aside>
       </main>
 
@@ -269,6 +284,8 @@ export default function Cart() {
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
       />
+
+      <SiteFooter />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
+import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 
 const defaultImage = "/manus-storage/product-pickle_c9669039.jpg";
@@ -363,6 +364,8 @@ export default function ProductDetail() {
           </Link>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

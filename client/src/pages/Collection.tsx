@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Link } from "wouter";
+import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 
 const toneList = ["red", "olive", "gold"];
@@ -305,6 +306,8 @@ export default function Collection() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

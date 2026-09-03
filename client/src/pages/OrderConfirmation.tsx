@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
+import SiteFooter from "@/components/SiteFooter";
 
 interface OrderTrackingData {
   orderNumber: string;
@@ -367,6 +368,8 @@ export default function OrderConfirmation() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }
