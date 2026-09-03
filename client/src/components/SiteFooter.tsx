@@ -108,11 +108,6 @@ export default function SiteFooter() {
                   Our Sourcing Heritage
                 </a>
               </li>
-              <li>
-                <Link href="/admin/login" style={{ color: "#8E867B", fontSize: "13px", textDecoration: "none" }}>
-                  Admin Portal ↗
-                </Link>
-              </li>
             </ul>
           </div>
 
