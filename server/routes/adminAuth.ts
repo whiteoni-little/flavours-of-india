@@ -72,7 +72,7 @@ adminAuthRouter.post("/login", async (req, res) => {
               user.user_metadata?.role ||
               user.app_metadata?.role ||
               (normalizedEmail.includes("admin") ||
-              normalizedEmail === "patrodurga4@gmail.com"
+              normalizedEmail === "durgapatro06@gmail.com"
                 ? "admin"
                 : "customer");
           }

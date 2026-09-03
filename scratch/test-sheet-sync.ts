@@ -12,7 +12,7 @@ async function testGoogleSheetWebhook() {
     orderNumber: `FOI-2026-${Math.floor(10000 + Math.random() * 90000)}`,
     customerName: "Durga Prasad Patro (Live Test)",
     customerPhone: "7978560619",
-    customerEmail: "patrodurga4@gmail.com",
+    customerEmail: "durgapatro06@gmail.com",
     shippingAddress: "Plot 45, Main Road",
     shippingCity: "Berhampur",
     shippingState: "Odisha",

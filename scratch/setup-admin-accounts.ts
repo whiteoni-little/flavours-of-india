@@ -6,7 +6,7 @@ import { hashPassword } from "../server/auth";
 async function setupAdminAccounts() {
   const adminEmails = [
     { email: "admin@flavoursofindia.com", name: "Flavours Operations Admin", password: "AdminPassword@2026" },
-    { email: "patrodurga4@gmail.com", name: "Durga Prasad Patro", password: "AdminPassword@2026" },
+    { email: "durgapatro06@gmail.com", name: "Durga Prasad Patro", password: "AdminPassword@2026" },
   ];
 
   const supabase = getSupabaseAdmin();
