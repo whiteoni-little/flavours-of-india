@@ -41,14 +41,18 @@ export class DatabaseService {
   private db: Database.Database;
 
   constructor(dbPath?: string) {
-    const targetPath =
-      dbPath ||
-      process.env.SQLITE_DB_PATH ||
-      path.join(process.cwd(), "data", "flavours.db");
+    const defaultPath = process.env.VERCEL
+      ? path.join("/tmp", "flavours.db")
+      : path.join(process.cwd(), "data", "flavours.db");
+    const targetPath = dbPath || process.env.SQLITE_DB_PATH || defaultPath;
     if (targetPath !== ":memory:") {
       const dir = path.dirname(targetPath);
       if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+        try {
+          fs.mkdirSync(dir, { recursive: true });
+        } catch {
+          // Ignore mkdir errors if directory exists or in read-only environment
+        }
       }
     }
     this.db = new Database(targetPath);
