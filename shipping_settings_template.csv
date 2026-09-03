@@ -1,0 +1,6 @@
+setting_key,label,value,unit,notes
+free_shipping_threshold,Free Shipping Cart Value,49900,paise,"Orders worth ₹499 and above receive free standard domestic shipping"
+standard_shipping_fee,Standard Flat Shipping Fee,5000,paise,"Flat shipping fee of ₹50 applied on orders below ₹499"
+estimated_dispatch_days,Standard Dispatch Window,1,business_days,"Orders packed and handed over to courier within 24-48 hours"
+estimated_delivery_days,Standard Delivery Time,3-5,business_days,"Standard pan-India delivery time via express courier partner"
+supported_couriers,Integrated Courier Partners,"Delhivery, BlueDart, DTDC, India Post",list,"Default couriers supported for shipment tracking"

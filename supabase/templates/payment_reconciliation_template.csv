@@ -1,0 +1,4 @@
+order_number,customer_name,customer_phone,customer_email,payment_method,payment_status,upi_reference,amount_inr,payment_verified_at,admin_notes
+FOI-2026-10041,Aarav Sharma,9876543210,aarav.sharma@example.com,manual_upi,upi_verified,423891002341,498.00,2026-09-02T10:30:00Z,Bank statement matched UTR
+FOI-2026-10042,Priya Patel,9823456789,priya.patel@example.com,cod,cod_pending,,398.00,,Customer confirmed phone on call
+FOI-2026-10043,Rohan Verma,9811223344,rohan.v@example.com,manual_upi,upi_pending_verification,423891098765,648.00,,Awaiting bank sync

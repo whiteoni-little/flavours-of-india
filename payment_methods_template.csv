@@ -1,0 +1,4 @@
+method_code,name,account_holder_name,bank_name,bank_branch,account_number,ifsc_code,upi_vpa_id,qr_code_enabled,receipt_upload_required,instructions,is_active
+manual_upi,Direct UPI & Bank Transfer,Durga Prasad Patro,Bank of Baroda,Berhampur,85650100011547,BARB0DBBERH,7978560619@pthdfc,TRUE,TRUE,"Scan dynamic QR code or transfer to Bank of Baroda account. Enter 12-digit UTR & upload payment screenshot receipt.",TRUE
+cod,Cash on Delivery (COD),Durga Prasad Patro,N/A,N/A,N/A,N/A,N/A,FALSE,FALSE,"Pay exact cash upon package delivery. Address verified by operations team before packing.",TRUE
+gateway,Online Payment Gateway,Durga Prasad Patro,Bank of Baroda,Berhampur,85650100011547,BARB0DBBERH,7978560619@pthdfc,TRUE,FALSE,"Instant credit/debit card, net banking, or UPI via secure payment gateway.",FALSE
