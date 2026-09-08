@@ -29,17 +29,38 @@ export default function SiteHeader({
         <nav className={open ? "main-nav is-open" : "main-nav"}>
           <Link
             href="/collection"
-            className={location === "/collection" ? "active" : ""}
+            className={location === "/collection" && (!window.location.search || window.location.search === "?category=all") ? "active" : ""}
             onClick={() => setOpen(false)}
           >
             The Collection
           </Link>
           <Link
-            href="/blog"
-            className={location.startsWith("/blog") ? "active" : ""}
+            href="/collection?category=Pickles"
+            className={location === "/collection" && window.location.search.includes("category=Pickles") ? "active" : ""}
             onClick={() => setOpen(false)}
           >
-            Pantry Journal
+            Pickles
+          </Link>
+          <Link
+            href="/collection?category=Papad"
+            className={location === "/collection" && window.location.search.includes("category=Papad") ? "active" : ""}
+            onClick={() => setOpen(false)}
+          >
+            Papad
+          </Link>
+          <Link
+            href="/collection?category=Roasted%20snacks"
+            className={location === "/collection" && (window.location.search.includes("category=Roasted") || window.location.search.includes("category=Roasted%20snacks")) ? "active" : ""}
+            onClick={() => setOpen(false)}
+          >
+            Roasted Snacks
+          </Link>
+          <Link
+            href="/collection?category=Sweet%20things"
+            className={location === "/collection" && (window.location.search.includes("category=Sweet") || window.location.search.includes("category=Sweet%20things")) ? "active" : ""}
+            onClick={() => setOpen(false)}
+          >
+            Sweet Things
           </Link>
           <Link
             href="/track-order"
@@ -48,9 +69,6 @@ export default function SiteHeader({
           >
             Track Order
           </Link>
-          <a href="/#story" onClick={() => setOpen(false)}>
-            Our Story
-          </a>
         </nav>
         <div className="header-actions">
           <Link href="/cart" className="icon-button" aria-label="Shopping bag">

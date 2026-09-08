@@ -26,6 +26,7 @@ export interface AdminProductData {
   shortDescription: string;
   longDescription?: string | null;
   category: string;
+  packSize?: string | null;
   priceInMinorUnits?: number | null;
   currency: string;
   stockStatus: "in_stock" | "out_of_stock" | "draft";
@@ -59,6 +60,7 @@ export default function AdminProductModal({
   const [longDescription, setLongDescription] = useState("");
   const [category, setCategory] = useState("Pickles");
   const [customCategory, setCustomCategory] = useState("");
+  const [packSize, setPackSize] = useState("");
   const [priceInRupees, setPriceInRupees] = useState("");
   const [stockStatus, setStockStatus] = useState<
     "in_stock" | "out_of_stock" | "draft"
@@ -87,6 +89,7 @@ export default function AdminProductModal({
         setCategory("Other");
         setCustomCategory(product.category || "");
       }
+      setPackSize(product.packSize || "");
       setPriceInRupees(
         product.priceInMinorUnits !== null &&
           product.priceInMinorUnits !== undefined
@@ -108,6 +111,7 @@ export default function AdminProductModal({
       setLongDescription("");
       setCategory("Pickles");
       setCustomCategory("");
+      setPackSize("");
       setPriceInRupees("");
       setStockStatus("in_stock");
       setIsPublished(false);
@@ -276,6 +280,7 @@ export default function AdminProductModal({
         shortDescription: shortDescription.trim(),
         longDescription: longDescription.trim() || null,
         category: finalCategory,
+        packSize: packSize.trim() || null,
         priceInMinorUnits,
         currency: "INR",
         stockStatus,
@@ -292,6 +297,7 @@ export default function AdminProductModal({
         short_description: shortDescription.trim(),
         long_description: longDescription.trim() || null,
         category: finalCategory,
+        pack_size: packSize.trim() || null,
         price_in_minor_units: priceInMinorUnits,
         currency: "INR",
         stock_status: stockStatus,
@@ -539,11 +545,11 @@ export default function AdminProductModal({
             </div>
           </div>
 
-          {/* Category, Price & Stock Status */}
+          {/* Category, Pack Size, Price & Stock Status */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
               gap: "16px",
               marginBottom: "16px",
             }}
@@ -597,6 +603,36 @@ export default function AdminProductModal({
                   }}
                 />
               )}
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  color: "var(--muted)",
+                  marginBottom: "6px",
+                }}
+              >
+                Pack Size / Weight (gms)
+              </label>
+              <input
+                type="text"
+                value={packSize}
+                onChange={e => setPackSize(e.target.value)}
+                placeholder="e.g. 200g, 300g Jar, 250g Pouch"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  border: "1px solid var(--border)",
+                  background: "var(--sunken)",
+                  color: "var(--ink)",
+                  fontSize: "14px",
+                }}
+              />
             </div>
 
             <div>

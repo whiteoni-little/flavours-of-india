@@ -8,6 +8,7 @@ export interface CartProduct {
   priceInMinorUnits: number | null;
   currency: string;
   category: string;
+  packSize?: string | null;
   primaryImage?: string;
 }
 

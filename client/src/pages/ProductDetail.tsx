@@ -8,6 +8,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
+import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/lib/supabase";
@@ -109,6 +110,7 @@ export default function ProductDetail() {
       priceInMinorUnits: product.priceInMinorUnits,
       currency: product.currency || "INR",
       category: product.category,
+      packSize: product.packSize,
       primaryImage: product.images?.[0]?.publicUrl,
     });
     setAdding(false);
@@ -121,14 +123,7 @@ export default function ProductDetail() {
   if (loading) {
     return (
       <div className="store-page">
-        <header className="sub-header container">
-          <Link href="/collection" className="back-link">
-            <ArrowLeft size={16} /> Collection
-          </Link>
-          <Link href="/cart" className="text-link">
-            Bag ({totalCount}) <ShoppingBag size={16} />
-          </Link>
-        </header>
+        <SiteHeader />
         <main
           className="container"
           style={{
@@ -146,14 +141,7 @@ export default function ProductDetail() {
   if (notFound || !product) {
     return (
       <div className="store-page">
-        <header className="sub-header container">
-          <Link href="/collection" className="back-link">
-            <ArrowLeft size={16} /> Collection
-          </Link>
-          <Link href="/cart" className="text-link">
-            Bag ({totalCount}) <ShoppingBag size={16} />
-          </Link>
-        </header>
+        <SiteHeader />
         <main
           className="container"
           style={{
@@ -198,14 +186,7 @@ export default function ProductDetail() {
 
   return (
     <div className="store-page">
-      <header className="sub-header container">
-        <Link href="/collection" className="back-link">
-          <ArrowLeft size={16} /> Collection
-        </Link>
-        <Link href="/cart" className="text-link">
-          Bag ({totalCount}) <ShoppingBag size={16} />
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="container detail-main">
         {/* Gallery / Image container */}
@@ -266,17 +247,41 @@ export default function ProductDetail() {
             <em>{product.title.split("—")[1] || "small-batch"}</em>
           </h1>
 
-          {formattedPrice && (
-            <div
-              style={{
-                font: "600 32px var(--font-serif)",
-                color: "var(--gold)",
-                margin: "0 0 20px",
-              }}
-            >
-              {formattedPrice}
-            </div>
-          )}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              margin: "0 0 20px",
+              flexWrap: "wrap",
+            }}
+          >
+            {formattedPrice && (
+              <div
+                style={{
+                  font: "600 32px var(--font-serif)",
+                  color: "var(--gold)",
+                  margin: 0,
+                }}
+              >
+                {formattedPrice}
+              </div>
+            )}
+            {product.packSize && (
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--secondary)",
+                  background: "var(--sunken)",
+                  border: "1px solid var(--border)",
+                  padding: "4px 10px",
+                  fontWeight: 500,
+                }}
+              >
+                Net Wt: {product.packSize}
+              </span>
+            )}
+          </div>
 
           <p className="detail-lede">{product.shortDescription}</p>
 

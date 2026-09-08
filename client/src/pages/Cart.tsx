@@ -8,6 +8,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Link } from "wouter";
+import SiteHeader from "@/components/SiteHeader";
 import CheckoutModal from "@/components/CheckoutModal";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
@@ -32,14 +33,7 @@ export default function Cart() {
 
   return (
     <div className="store-page">
-      <header className="sub-header container">
-        <Link href="/collection" className="back-link">
-          <ArrowLeft size={16} /> Continue browsing
-        </Link>
-        <span className="eyebrow" style={{ margin: 0 }}>
-          Your bag ({totalCount})
-        </span>
-      </header>
+      <SiteHeader />
 
       <main className="container cart-main">
         {isLoading ? (
@@ -107,16 +101,32 @@ export default function Cart() {
                     />
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.1em",
-                          color: "var(--muted)",
-                        }}
-                      >
-                        {item.product?.category || "Snack"}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.1em",
+                            color: "var(--muted)",
+                          }}
+                        >
+                          {item.product?.category || "Snack"}
+                        </span>
+                        {item.product?.packSize && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--secondary)",
+                              background: "var(--sunken)",
+                              border: "1px solid var(--border)",
+                              padding: "1px 5px",
+                              borderRadius: "2px",
+                            }}
+                          >
+                            {item.product.packSize}
+                          </span>
+                        )}
+                      </div>
                       <h3
                         style={{
                           font: "500 18px var(--font-serif)",

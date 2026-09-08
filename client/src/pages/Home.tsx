@@ -1,23 +1,41 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "wouter";
-import { useCart } from "@/contexts/CartContext";
+import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { supabase } from "@/lib/supabase";
 
-const logo = "/manus-storage/flavours-of-india-logo_4e9a9073.png";
-const heroImages = [
-  "/manus-storage/hero-pantry_47065533.jpg",
-  "/manus-storage/product-roasted_1a2dd2a6.jpg",
-  "/manus-storage/product-papad_ca672ac8.jpg",
+const heroCategories = [
+  {
+    name: "Pickles",
+    query: "Pickles",
+    image: "/manus-storage/product-pickle_c9669039.jpg",
+    kicker: "Small-batch sun-cured pickles",
+  },
+  {
+    name: "Papad",
+    query: "Papad",
+    image: "/manus-storage/product-papad_ca672ac8.jpg",
+    kicker: "Hand-rolled sun-dried papad",
+  },
+  {
+    name: "Roasted snacks",
+    query: "Roasted snacks",
+    image: "/manus-storage/product-roasted_1a2dd2a6.jpg",
+    kicker: "Dry-roasted spiced savouries",
+  },
+  {
+    name: "Sweet things",
+    query: "Sweet things",
+    image: "/manus-storage/product-sweets_delicacy.jpg",
+    kicker: "Traditional festive delicacies",
+  },
 ];
-const categories = ["Pickles", "Papad", "Roasted snacks", "Sweet things"];
+
 const toneList = ["red", "olive", "gold"];
 
 export default function Home() {
   const [active, setActive] = useState(0);
-  const [open, setOpen] = useState(false);
-  const { totalCount } = useCart();
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
@@ -76,59 +94,26 @@ export default function Home() {
     loadFeatured();
   }, []);
 
+  const activeCategory = heroCategories[active] || heroCategories[0];
+
   return (
     <div className="site-shell">
-      <div className="announcement">
-        <Sparkles size={13} /> A little taste of home, a lot of happiness • Handcrafted in Ganjam, Odisha
-      </div>
-      <header className="site-header container">
-        <Link href="/" className="brand-lockup">
-          <img src={logo} className="brand-logo" alt="Flavours of India" />
-          <span className="brand-tagline">Goodness from home</span>
-        </Link>
-        <nav className={open ? "main-nav is-open" : "main-nav"}>
-          <Link href="/collection" onClick={() => setOpen(false)}>
-            The Collection
-          </Link>
-          <Link href="/blog" onClick={() => setOpen(false)}>
-            Pantry Journal
-          </Link>
-          <Link href="/track-order" onClick={() => setOpen(false)}>
-            Track Order
-          </Link>
-          <a href="#story" onClick={() => setOpen(false)}>
-            Our Story
-          </a>
-        </nav>
-        <div className="header-actions">
-          <Link href="/cart" className="icon-button" aria-label="Shopping bag">
-            <ShoppingBag size={20} strokeWidth={1.6} />
-            <span className="bag-count">{totalCount}</span>
-          </Link>
-          <button
-            className="menu-button"
-            onClick={() => setOpen(!open)}
-            aria-label="Toggle menu"
-          >
-            {open ? <X size={21} /> : <Menu size={21} />}
-          </button>
-        </div>
-      </header>
+      <SiteHeader />
       <main>
         <section
           className="hero hero-art-directed"
           style={{
-            backgroundImage: `linear-gradient(90deg, rgba(32,27,22,.82) 0%, rgba(32,27,22,.38) 55%, rgba(32,27,22,.02) 100%), url(${heroImages[active]})`,
+            backgroundImage: `linear-gradient(90deg, rgba(32,27,22,.82) 0%, rgba(32,27,22,.38) 55%, rgba(32,27,22,.02) 100%), url(${activeCategory.image})`,
           }}
         >
           <div className="hero-inner container">
             <div className="hero-kicker">
               <span>Pantry note 0{active + 1}</span>
               <span className="kicker-rule" />
-              <span>{categories[active]}</span>
+              <span>{activeCategory.name}</span>
             </div>
             <p className="eyebrow light">
-              Regional goodness, thoughtfully gathered
+              {activeCategory.kicker}
             </p>
             <h1>
               Make room
@@ -140,8 +125,8 @@ export default function Home() {
               gathered for unhurried moments, shared tables, and happy little
               cravings.
             </p>
-            <Link href="/collection" className="primary-button">
-              Shop the collection <ArrowRight size={18} />
+            <Link href={`/collection?category=${encodeURIComponent(activeCategory.query)}`} className="primary-button">
+              Shop {activeCategory.name} <ArrowRight size={18} />
             </Link>
             <div className="hero-meta">
               <span>Scroll to savour</span>
@@ -165,20 +150,21 @@ export default function Home() {
             </p>
           </div>
           <div className="category-list">
-            {categories.map((category, index) => (
-              <button
-                key={category}
+            {heroCategories.map((cat, index) => (
+              <Link
+                key={cat.name}
+                href={`/collection?category=${encodeURIComponent(cat.query)}`}
                 className={
                   active === index ? "category-link active" : "category-link"
                 }
                 onMouseEnter={() => setActive(index)}
                 onFocus={() => setActive(index)}
-                onClick={() => setActive(index)}
+                style={{ textDecoration: "none" }}
               >
                 <span>0{index + 1}</span>
-                {category}
+                {cat.name}
                 <ArrowRight size={17} />
-              </button>
+              </Link>
             ))}
           </div>
         </section>
@@ -250,7 +236,7 @@ export default function Home() {
                   const tone = toneList[idx % toneList.length];
                   const img =
                     product.images?.[0]?.publicUrl ||
-                    heroImages[idx % heroImages.length];
+                    heroCategories[idx % heroCategories.length].image;
                   const numStr = `0${idx + 1}`;
 
                   return (
@@ -274,18 +260,43 @@ export default function Home() {
                           <p className="product-description">
                             {product.shortDescription}
                           </p>
-                          {product.priceInMinorUnits && (
-                            <p
-                              style={{
-                                margin: "8px 0 0",
-                                color: "var(--gold)",
-                                fontWeight: 600,
-                                fontSize: "14px",
-                              }}
-                            >
-                              ₹{(product.priceInMinorUnits / 100).toFixed(0)}
-                            </p>
-                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              marginTop: "8px",
+                              flexWrap: "wrap",
+                              gap: "6px",
+                            }}
+                          >
+                            {product.priceInMinorUnits && (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: "var(--gold)",
+                                  fontWeight: 600,
+                                  fontSize: "15px",
+                                }}
+                              >
+                                ₹{(product.priceInMinorUnits / 100).toFixed(0)}
+                              </p>
+                            )}
+                            {product.packSize && (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "var(--secondary)",
+                                  background: "var(--sunken)",
+                                  border: "1px solid var(--border)",
+                                  padding: "2px 8px",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {product.packSize}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="product-arrow">
                           <ArrowRight size={18} />

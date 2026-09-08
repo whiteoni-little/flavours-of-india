@@ -340,7 +340,23 @@ export default function AdminProducts() {
                         )}
                         <div>
                           <strong>{p.title}</strong>
-                          <small style={{ fontFamily: "monospace" }}>
+                          {p.packSize && (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: "11px",
+                                background: "var(--sunken)",
+                                border: "1px solid var(--border)",
+                                padding: "1px 6px",
+                                borderRadius: "2px",
+                                color: "var(--secondary)",
+                                margin: "2px 0",
+                              }}
+                            >
+                              {p.packSize}
+                            </span>
+                          )}
+                          <small style={{ fontFamily: "monospace", display: "block" }}>
                             /product/{p.slug}
                           </small>
                         </div>

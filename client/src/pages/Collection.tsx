@@ -6,7 +6,8 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/lib/supabase";
@@ -15,15 +16,44 @@ const toneList = ["red", "olive", "gold"];
 const defaultPlaceholderImg = "/manus-storage/product-pickle_c9669039.jpg";
 
 export default function Collection() {
+  const [location] = useLocation();
   const { totalCount } = useCart();
   const [products, setProducts] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("category") || "all";
+    }
+    return "all";
+  });
+  const [search, setSearch] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("search") || "";
+    }
+    return "";
+  });
   const [sortBy, setSortBy] = useState("default");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("category");
+      if (cat) {
+        setSelectedCategory(cat);
+      } else if (!window.location.search.includes("category=")) {
+        setSelectedCategory("all");
+      }
+      const q = params.get("search");
+      if (q !== null) {
+        setSearch(q);
+      }
+    }
+  }, [location]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -121,15 +151,7 @@ export default function Collection() {
 
   return (
     <div className="store-page">
-      <header className="sub-header container">
-        <Link href="/" className="back-link">
-          ← Home
-        </Link>
-        <h1>The collection</h1>
-        <Link href="/cart" className="text-link">
-          Bag ({totalCount}) <ArrowRight size={16} />
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="container collection-main">
         <div className="collection-lede">
@@ -348,18 +370,43 @@ export default function Collection() {
                       <p className="product-description">
                         {product.shortDescription}
                       </p>
-                      {price && (
-                        <p
-                          style={{
-                            margin: "8px 0 0",
-                            color: "var(--gold)",
-                            fontWeight: 600,
-                            fontSize: "15px",
-                          }}
-                        >
-                          {price}
-                        </p>
-                      )}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginTop: "8px",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                        }}
+                      >
+                        {price && (
+                          <p
+                            style={{
+                              margin: 0,
+                              color: "var(--gold)",
+                              fontWeight: 600,
+                              fontSize: "15px",
+                            }}
+                          >
+                            {price}
+                          </p>
+                        )}
+                        {product.packSize && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--secondary)",
+                              background: "var(--sunken)",
+                              border: "1px solid var(--border)",
+                              padding: "2px 8px",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {product.packSize}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="product-arrow">
                       <ArrowRight size={18} />
