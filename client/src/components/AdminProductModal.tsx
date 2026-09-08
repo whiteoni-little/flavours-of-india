@@ -141,60 +141,65 @@ export default function AdminProductModal({
     setUploadingImage(true);
     setErrorMessage(null);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-      // 1. Direct Supabase Storage Upload (Primary)
-      const uploadResult = await uploadProductImageDirect(file, product?.id);
+        // 1. Direct Supabase Storage Upload (Primary)
+        const uploadResult = await uploadProductImageDirect(file, product?.id);
 
-      if (uploadResult.success && uploadResult.publicUrl) {
-        // If editing existing product, attach record to product directly in Supabase
-        if (product?.id) {
-          const { data: imgData } = await supabase
-            .from("product_images")
-            .insert([
-              {
-                product_id: product.id,
-                storage_path: uploadResult.storagePath || uploadResult.publicUrl,
-                public_url: uploadResult.publicUrl,
-                alt_text: `${title || "Product"} image`,
-                sort_order: images.length,
-              },
-            ])
-            .select()
-            .single();
+        if (uploadResult.success && uploadResult.publicUrl) {
+          // If editing existing product, attach record to product directly in Supabase
+          if (product?.id) {
+            const { data: imgData } = await supabase
+              .from("product_images")
+              .insert([
+                {
+                  product_id: product.id,
+                  storage_path: uploadResult.storagePath || uploadResult.publicUrl,
+                  public_url: uploadResult.publicUrl,
+                  alt_text: `${title || "Product"} image`,
+                  sort_order: images.length,
+                },
+              ])
+              .select()
+              .single();
 
-          if (imgData) {
-            setImages(prev => [
-              ...prev,
-              {
-                id: imgData.id,
-                storageKey: imgData.storage_path,
-                publicUrl: imgData.public_url,
-                altText: imgData.alt_text,
-                sortOrder: imgData.sort_order,
-              },
-            ]);
-            continue;
+            if (imgData) {
+              setImages(prev => [
+                ...prev,
+                {
+                  id: imgData.id,
+                  storageKey: imgData.storage_path,
+                  publicUrl: imgData.public_url,
+                  altText: imgData.alt_text,
+                  sortOrder: imgData.sort_order,
+                },
+              ]);
+              continue;
+            }
           }
-        }
 
-        // Add to local images state with real CDN URL
-        setImages(prev => [
-          ...prev,
-          {
-            storageKey: uploadResult.storagePath || uploadResult.publicUrl!,
-            publicUrl: uploadResult.publicUrl!,
-            altText: `${title || "Product"} image`,
-            sortOrder: prev.length,
-            file,
-          },
-        ]);
-      } else {
-        // Fallback to local DataURL preview
-        const reader = new FileReader();
-        reader.onload = () => {
-          const previewUrl = reader.result as string;
+          // Add to local images state with real CDN URL
+          setImages(prev => [
+            ...prev,
+            {
+              storageKey: uploadResult.storagePath || uploadResult.publicUrl!,
+              publicUrl: uploadResult.publicUrl!,
+              altText: `${title || "Product"} image`,
+              sortOrder: prev.length,
+              file,
+            },
+          ]);
+        } else {
+          // Fallback to local DataURL preview with async Promise
+          const previewUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
           setImages(prev => [
             ...prev,
             {
@@ -205,13 +210,15 @@ export default function AdminProductModal({
               file,
             },
           ]);
-        };
-        reader.readAsDataURL(file);
+        }
       }
+    } catch (err: any) {
+      console.error("Image loading error:", err);
+      setErrorMessage("Could not load one or more images. Please try again.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
     }
-
-    setUploadingImage(false);
-    e.target.value = "";
   };
 
   const handleRemoveImage = async (index: number, img: ProductImage) => {
@@ -336,7 +343,7 @@ export default function AdminProductModal({
           let publicUrl = img.publicUrl;
           let storagePath = img.storageKey;
 
-          // If it's a local File not yet uploaded to Supabase Storage
+          // If it's a local File, attempt upload to Supabase Storage
           if (img.file && (!publicUrl || publicUrl.startsWith("data:"))) {
             const upRes = await uploadProductImageDirect(img.file, savedProduct.id);
             if (upRes.success && upRes.publicUrl) {
@@ -345,12 +352,12 @@ export default function AdminProductModal({
             }
           }
 
-          if (publicUrl && !publicUrl.startsWith("data:") && !img.id) {
-            // Write directly to Supabase product_images table
+          // Save image record to Supabase product_images table if not already saved
+          if (publicUrl && !img.id) {
             await supabase.from("product_images").insert([
               {
                 product_id: savedProduct.id,
-                storage_path: storagePath || publicUrl,
+                storage_path: storagePath || `products/${savedProduct.id}/img_${i}.jpg`,
                 public_url: publicUrl,
                 alt_text: `${title} image`,
                 sort_order: i,
