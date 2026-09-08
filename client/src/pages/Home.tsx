@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Menu, ShoppingBag, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
 import { useCart } from "@/contexts/CartContext";
-
 import SiteFooter from "@/components/SiteFooter";
+import { supabase } from "@/lib/supabase";
 
 const logo = "/manus-storage/flavours-of-india-logo_4e9a9073.png";
 const heroImages = [
@@ -22,15 +22,58 @@ export default function Home() {
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
-    fetch("/api/products?pageSize=3")
-      .then(res => (res.ok ? res.json() : null))
-      .then(data => {
-        if (data && Array.isArray(data.products)) {
-          setFeaturedProducts(data.products);
+    async function loadFeatured() {
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*, product_images(*)")
+          .eq("is_published", true)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (!error && data && data.length > 0) {
+          const formatted = data.map((p: any) => ({
+            id: p.id,
+            sku: p.sku,
+            slug: p.slug,
+            title: p.title,
+            shortDescription: p.short_description,
+            longDescription: p.long_description,
+            category: p.category,
+            packSize: p.pack_size,
+            priceInMinorUnits: p.price_in_minor_units,
+            currency: p.currency,
+            stockStatus: p.stock_status,
+            isPublished: p.is_published,
+            images: (p.product_images || []).map((img: any) => ({
+              id: img.id,
+              storageKey: img.storage_path,
+              publicUrl: img.public_url,
+              altText: img.alt_text,
+              sortOrder: img.sort_order,
+            })),
+          }));
+          setFeaturedProducts(formatted);
+          return;
         }
-      })
-      .catch(err => console.error("Error loading home products:", err))
-      .finally(() => setLoadingProducts(false));
+
+        // Fallback
+        const res = await fetch("/api/products?pageSize=3");
+        if (res.ok) {
+          const apiData = await res.json();
+          if (apiData && Array.isArray(apiData.products)) {
+            setFeaturedProducts(apiData.products);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading home products:", err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+
+    loadFeatured();
   }, []);
 
   return (

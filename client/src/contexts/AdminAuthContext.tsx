@@ -39,7 +39,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         const role =
           (u.user_metadata?.role as string) ||
           (u.app_metadata?.role as string) ||
-          (normalizedEmail === "durgapatro06@gmail.com" ||
+          (normalizedEmail === "openear01@gmail.com" ||
+          normalizedEmail === "durgapatro06@gmail.com" ||
           normalizedEmail.includes("admin")
             ? "admin"
             : "customer");

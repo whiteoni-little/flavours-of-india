@@ -16,6 +16,7 @@ import AdminProductModal, {
 } from "@/components/AdminProductModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import { authFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([]);
@@ -42,17 +43,76 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
-      if (selectedCategory !== "all") params.set("category", selectedCategory);
-      if (selectedStock !== "all") params.set("stockStatus", selectedStock);
-      params.set("pageSize", "50");
+      // 1. Direct Supabase Query (Fast & Reliable on Vercel)
+      let query = supabase
+        .from("products")
+        .select("*, product_images(*)")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
 
-      const result = await authFetch(`/api/admin/products?${params.toString()}`);
-      if (result.ok && result.data) {
-        setProducts(result.data.products || []);
-        setTotal(result.data.total || 0);
-        setCategories(result.data.categories || []);
+      if (selectedCategory !== "all") {
+        query = query.eq("category", selectedCategory);
+      }
+      if (selectedStock !== "all") {
+        query = query.eq("stock_status", selectedStock);
+      }
+      if (search.trim()) {
+        query = query.or(
+          `title.ilike.%${search.trim()}%,slug.ilike.%${search.trim()}%,short_description.ilike.%${search.trim()}%`
+        );
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data) {
+        const formatted = data.map((p: any) => ({
+          id: p.id,
+          sku: p.sku,
+          slug: p.slug,
+          title: p.title,
+          shortDescription: p.short_description,
+          longDescription: p.long_description,
+          category: p.category,
+          packSize: p.pack_size,
+          priceInMinorUnits: p.price_in_minor_units,
+          currency: p.currency,
+          stockStatus: p.stock_status,
+          stockQuantity: p.stock_quantity,
+          isPublished: p.is_published,
+          sourcingNote: p.sourcing_note,
+          ingredients: p.ingredients,
+          shelfLife: p.shelf_life,
+          images: (p.product_images || []).map((img: any) => ({
+            id: img.id,
+            storageKey: img.storage_path,
+            publicUrl: img.public_url,
+            altText: img.alt_text,
+            sortOrder: img.sort_order,
+          })),
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        }));
+        setProducts(formatted);
+        setTotal(formatted.length);
+
+        const uniqueCats = Array.from(
+          new Set(formatted.map((p: any) => p.category))
+        ).filter(Boolean);
+        setCategories(uniqueCats as string[]);
+      } else {
+        // Fallback to API endpoint
+        const params = new URLSearchParams();
+        if (search.trim()) params.set("search", search.trim());
+        if (selectedCategory !== "all") params.set("category", selectedCategory);
+        if (selectedStock !== "all") params.set("stockStatus", selectedStock);
+        params.set("pageSize", "50");
+
+        const result = await authFetch(`/api/admin/products?${params.toString()}`);
+        if (result.ok && result.data) {
+          setProducts(result.data.products || []);
+          setTotal(result.data.total || 0);
+          setCategories(result.data.categories || []);
+        }
       }
     } catch (err) {
       console.error("Error fetching admin products:", err);
@@ -82,12 +142,25 @@ export default function AdminProducts() {
     if (!deletingProduct) return;
     setIsDeleting(true);
     try {
-      const result = await authFetch(`/api/admin/products/${deletingProduct.id}`, {
-        method: "DELETE",
-      });
-      if (result.ok) {
+      const { error } = await supabase
+        .from("products")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", deletingProduct.id);
+
+      if (!error) {
         setDeletingProduct(null);
         fetchProducts();
+      } else {
+        const result = await authFetch(
+          `/api/admin/products/${deletingProduct.id}`,
+          {
+            method: "DELETE",
+          }
+        );
+        if (result.ok) {
+          setDeletingProduct(null);
+          fetchProducts();
+        }
       }
     } catch (err) {
       console.error("Failed to delete product:", err);

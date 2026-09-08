@@ -269,34 +269,76 @@ export default function AdminProductModal({
         shelfLife: shelfLife.trim() || null,
       };
 
-      let result = isEditing
-        ? await authFetch(`/api/admin/products/${product!.id}`, {
+      // 1. Supabase database payload
+      const dbPayload: any = {
+        title: title.trim(),
+        slug: slug.trim().toLowerCase(),
+        short_description: shortDescription.trim(),
+        long_description: longDescription.trim() || null,
+        category: finalCategory,
+        price_in_minor_units: priceInMinorUnits,
+        currency: "INR",
+        stock_status: stockStatus,
+        is_published: isPublished,
+        sourcing_note: sourcingNote.trim() || null,
+        ingredients: ingredients.trim() || null,
+        shelf_life: shelfLife.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      let savedProduct: any = null;
+
+      if (isEditing) {
+        const { data, error } = await supabase
+          .from("products")
+          .update(dbPayload)
+          .eq("id", product!.id)
+          .select()
+          .single();
+
+        if (error) {
+          // Fallback to authFetch API
+          const result = await authFetch(`/api/admin/products/${product!.id}`, {
             method: "PATCH",
             body: JSON.stringify(payload),
-          })
-        : await authFetch("/api/admin/products", {
+          });
+          if (!result.ok) throw new Error(result.error || error.message);
+          savedProduct = result.data;
+        } else {
+          savedProduct = data;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("products")
+          .insert([dbPayload])
+          .select()
+          .single();
+
+        if (error) {
+          // Fallback to authFetch API
+          const result = await authFetch("/api/admin/products", {
             method: "POST",
             body: JSON.stringify(payload),
           });
-
-      if (!result.ok) {
-        const errorMsg = result.error || "Failed to save product";
-        if (errorMsg.includes("schema cache") || errorMsg.includes("relation") || errorMsg.includes("table")) {
-          throw new Error("Supabase tables not initialized. Please execute the SQL migration in your Supabase SQL Editor.");
+          if (!result.ok) throw new Error(result.error || error.message);
+          savedProduct = result.data;
+        } else {
+          savedProduct = data;
         }
-        throw new Error(errorMsg);
       }
 
-      const savedProduct = result.data;
+      if (!savedProduct?.id) {
+        throw new Error("Failed to save product record");
+      }
 
-      // Upload and link any newly attached images for this product
-      if (savedProduct?.id && images.length > 0) {
+      // 2. Upload and link any newly attached images for this product
+      if (images.length > 0) {
         for (let i = 0; i < images.length; i++) {
           const img = images[i];
           let publicUrl = img.publicUrl;
           let storagePath = img.storageKey;
 
-          // If it's a local File not yet uploaded to Supabase
+          // If it's a local File not yet uploaded to Supabase Storage
           if (img.file && (!publicUrl || publicUrl.startsWith("data:"))) {
             const upRes = await uploadProductImageDirect(img.file, savedProduct.id);
             if (upRes.success && upRes.publicUrl) {
@@ -306,18 +348,32 @@ export default function AdminProductModal({
           }
 
           if (publicUrl && !publicUrl.startsWith("data:") && !img.id) {
-            await authFetch(
-              `/api/admin/products/${savedProduct.id}/images/complete`,
+            // Write directly to Supabase product_images table
+            const { error: imgErr } = await supabase.from("product_images").insert([
               {
-                method: "POST",
-                body: JSON.stringify({
-                  storagePath,
-                  publicUrl,
-                  altText: `${title} image`,
-                  sortOrder: i,
-                }),
-              }
-            );
+                product_id: savedProduct.id,
+                storage_path: storagePath || publicUrl,
+                public_url: publicUrl,
+                alt_text: `${title} image`,
+                sort_order: i,
+              },
+            ]);
+
+            if (imgErr) {
+              // Fallback to API complete
+              await authFetch(
+                `/api/admin/products/${savedProduct.id}/images/complete`,
+                {
+                  method: "POST",
+                  body: JSON.stringify({
+                    storagePath,
+                    publicUrl,
+                    altText: `${title} image`,
+                    sortOrder: i,
+                  }),
+                }
+              );
+            }
           }
         }
       }

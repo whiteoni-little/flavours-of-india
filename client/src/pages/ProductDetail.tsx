@@ -10,6 +10,7 @@ import {
 import { Link, useRoute } from "wouter";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/lib/supabase";
 
 const defaultImage = "/manus-storage/product-pickle_c9669039.jpg";
 
@@ -36,21 +37,66 @@ export default function ProductDetail() {
     if (!slug) return;
     setLoading(true);
     setNotFound(false);
-    fetch(`/api/products/${slug}`)
-      .then(res => {
-        if (!res.ok) {
-          if (res.status === 404) setNotFound(true);
-          return null;
+
+    async function loadProduct() {
+      try {
+        // 1. Direct Supabase Query
+        const { data, error } = await supabase
+          .from("products")
+          .select("*, product_images(*)")
+          .eq("slug", slug)
+          .eq("is_published", true)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (!error && data) {
+          const formatted = {
+            id: data.id,
+            sku: data.sku,
+            slug: data.slug,
+            title: data.title,
+            shortDescription: data.short_description,
+            longDescription: data.long_description,
+            category: data.category,
+            packSize: data.pack_size,
+            priceInMinorUnits: data.price_in_minor_units,
+            currency: data.currency,
+            stockStatus: data.stock_status,
+            stockQuantity: data.stock_quantity,
+            isPublished: data.is_published,
+            sourcingNote: data.sourcing_note,
+            ingredients: data.ingredients,
+            allergenInformation: data.allergen_information,
+            shelfLife: data.shelf_life,
+            storageInstructions: data.storage_instructions,
+            images: (data.product_images || []).map((img: any) => ({
+              id: img.id,
+              storageKey: img.storage_path,
+              publicUrl: img.public_url,
+              altText: img.alt_text,
+              sortOrder: img.sort_order,
+            })),
+          };
+          setProduct(formatted);
+          return;
         }
-        return res.json();
-      })
-      .then(data => {
-        if (data) {
-          setProduct(data);
+
+        // Fallback to API
+        const res = await fetch(`/api/products/${slug}`);
+        if (res.ok) {
+          const apiData = await res.json();
+          setProduct(apiData);
+        } else {
+          setNotFound(true);
         }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProduct();
   }, [slug]);
 
   const handleAddToCart = async () => {

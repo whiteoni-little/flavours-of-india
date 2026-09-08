@@ -9,6 +9,7 @@ import {
 import { Link } from "wouter";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/lib/supabase";
 
 const toneList = ["red", "olive", "gold"];
 const defaultPlaceholderImg = "/manus-storage/product-pickle_c9669039.jpg";
@@ -27,18 +28,82 @@ export default function Collection() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedCategory !== "all") params.set("category", selectedCategory);
-      if (search.trim()) params.set("search", search.trim());
-      if (sortBy !== "default") params.set("sort", sortBy);
-      params.set("pageSize", "30");
+      // 1. Direct Supabase Query
+      let query = supabase
+        .from("products")
+        .select("*, product_images(*)")
+        .eq("is_published", true)
+        .is("deleted_at", null);
 
-      const res = await fetch(`/api/products?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-        setTotal(data.total || 0);
-        setCategories(data.categories || []);
+      if (selectedCategory !== "all") {
+        query = query.eq("category", selectedCategory);
+      }
+      if (search.trim()) {
+        query = query.or(
+          `title.ilike.%${search.trim()}%,short_description.ilike.%${search.trim()}%`
+        );
+      }
+
+      if (sortBy === "price_asc") {
+        query = query.order("price_in_minor_units", { ascending: true });
+      } else if (sortBy === "price_desc") {
+        query = query.order("price_in_minor_units", { ascending: false });
+      } else if (sortBy === "title_asc") {
+        query = query.order("title", { ascending: true });
+      } else {
+        query = query.order("created_at", { ascending: false });
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data) {
+        const formatted = data.map((p: any) => ({
+          id: p.id,
+          sku: p.sku,
+          slug: p.slug,
+          title: p.title,
+          shortDescription: p.short_description,
+          longDescription: p.long_description,
+          category: p.category,
+          packSize: p.pack_size,
+          priceInMinorUnits: p.price_in_minor_units,
+          currency: p.currency,
+          stockStatus: p.stock_status,
+          stockQuantity: p.stock_quantity,
+          isPublished: p.is_published,
+          sourcingNote: p.sourcing_note,
+          ingredients: p.ingredients,
+          shelfLife: p.shelf_life,
+          images: (p.product_images || []).map((img: any) => ({
+            id: img.id,
+            storageKey: img.storage_path,
+            publicUrl: img.public_url,
+            altText: img.alt_text,
+            sortOrder: img.sort_order,
+          })),
+        }));
+        setProducts(formatted);
+        setTotal(formatted.length);
+
+        const uniqueCats = Array.from(
+          new Set(formatted.map((p: any) => p.category))
+        ).filter(Boolean);
+        setCategories(uniqueCats as string[]);
+      } else {
+        // Fallback to API
+        const params = new URLSearchParams();
+        if (selectedCategory !== "all") params.set("category", selectedCategory);
+        if (search.trim()) params.set("search", search.trim());
+        if (sortBy !== "default") params.set("sort", sortBy);
+        params.set("pageSize", "30");
+
+        const res = await fetch(`/api/products?${params.toString()}`);
+        if (res.ok) {
+          const apiData = await res.json();
+          setProducts(apiData.products || []);
+          setTotal(apiData.total || 0);
+          setCategories(apiData.categories || []);
+        }
       }
     } catch (err) {
       console.error("Error fetching collection:", err);
