@@ -102,7 +102,15 @@ export default function ProductDetail() {
   const handleAddToCart = async () => {
     if (!product || product.stockStatus === "out_of_stock" || adding) return;
     setAdding(true);
-    const success = await addItem(product.id, 1);
+    const success = await addItem(product.id, 1, {
+      id: product.id,
+      title: product.title,
+      slug: product.slug,
+      priceInMinorUnits: product.priceInMinorUnits,
+      currency: product.currency || "INR",
+      category: product.category,
+      primaryImage: product.images?.[0]?.publicUrl,
+    });
     setAdding(false);
     if (success) {
       setAdded(true);
