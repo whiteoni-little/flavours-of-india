@@ -12,6 +12,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/lib/supabase";
+import { getPackOptions, type PackOption } from "@shared/packSizes";
 
 const defaultImage = "/manus-storage/product-pickle_c9669039.jpg";
 
@@ -24,6 +25,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedPackOption, setSelectedPackOption] = useState<PackOption | null>(null);
 
   // Accordion toggle states
   const [openIngredients, setOpenIngredients] = useState(false);
@@ -79,6 +81,8 @@ export default function ProductDetail() {
             })),
           };
           setProduct(formatted);
+          const opts = getPackOptions(formatted);
+          setSelectedPackOption(opts[0] || null);
           return;
         }
 
@@ -87,6 +91,8 @@ export default function ProductDetail() {
         if (res.ok) {
           const apiData = await res.json();
           setProduct(apiData);
+          const opts = getPackOptions(apiData);
+          setSelectedPackOption(opts[0] || null);
         } else {
           setNotFound(true);
         }
@@ -103,14 +109,17 @@ export default function ProductDetail() {
   const handleAddToCart = async () => {
     if (!product || product.stockStatus === "out_of_stock" || adding) return;
     setAdding(true);
+    const chosenPrice = selectedPackOption?.priceInMinorUnits || product.priceInMinorUnits;
+    const chosenPackSize = selectedPackOption?.size || product.packSize || "200 gm";
+
     const success = await addItem(product.id, 1, {
       id: product.id,
       title: product.title,
       slug: product.slug,
-      priceInMinorUnits: product.priceInMinorUnits,
+      priceInMinorUnits: chosenPrice,
       currency: product.currency || "INR",
       category: product.category,
-      packSize: product.packSize,
+      packSize: chosenPackSize,
       primaryImage: product.images?.[0]?.publicUrl,
     });
     setAdding(false);
@@ -180,8 +189,12 @@ export default function ProductDetail() {
       : [{ publicUrl: defaultImage, altText: product.title }];
   const currentImage = images[activeImageIndex]?.publicUrl || defaultImage;
   const isOutOfStock = product.stockStatus === "out_of_stock";
-  const formattedPrice = product.priceInMinorUnits
-    ? `₹${(product.priceInMinorUnits / 100).toFixed(0)}`
+  const packOptions = product ? getPackOptions(product) : [];
+  const activePriceInMinorUnits = selectedPackOption
+    ? selectedPackOption.priceInMinorUnits
+    : product.priceInMinorUnits;
+  const formattedPrice = activePriceInMinorUnits
+    ? `₹${(activePriceInMinorUnits / 100).toFixed(0)}`
     : null;
 
   return (
@@ -267,20 +280,19 @@ export default function ProductDetail() {
                 {formattedPrice}
               </div>
             )}
-            {product.packSize && (
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "var(--secondary)",
-                  background: "var(--sunken)",
-                  border: "1px solid var(--border)",
-                  padding: "4px 10px",
-                  fontWeight: 500,
-                }}
-              >
-                Net Wt: {product.packSize}
-              </span>
-            )}
+            <span
+              style={{
+                fontSize: "13px",
+                color: "var(--secondary)",
+                background: "var(--sunken)",
+                border: "1px solid var(--border)",
+                padding: "4px 10px",
+                fontWeight: 500,
+                borderRadius: "3px",
+              }}
+            >
+              Selected: {selectedPackOption?.size || product.packSize || "200 gm"}
+            </span>
           </div>
 
           <p className="detail-lede">{product.shortDescription}</p>
@@ -290,11 +302,123 @@ export default function ProductDetail() {
               style={{
                 color: "var(--secondary)",
                 lineHeight: "1.7",
-                margin: "0 0 32px",
+                margin: "0 0 24px",
               }}
             >
               {product.longDescription}
             </p>
+          )}
+
+          {/* Pack Size Selector */}
+          {!isOutOfStock && packOptions.length > 0 && (
+            <div style={{ margin: "0 0 28px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "10px",
+                }}
+              >
+                <label
+                  style={{
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "var(--muted)",
+                    fontWeight: 600,
+                  }}
+                >
+                  Select Pack Size
+                </label>
+                <span style={{ fontSize: "12px", color: "var(--secondary)" }}>
+                  Price adjusts by weight
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${Math.min(packOptions.length, 4)}, 1fr)`,
+                  gap: "10px",
+                }}
+              >
+                {packOptions.map((opt) => {
+                  const isSelected = selectedPackOption?.size === opt.size;
+                  return (
+                    <button
+                      key={opt.size}
+                      type="button"
+                      onClick={() => setSelectedPackOption(opt)}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        padding: "10px 12px",
+                        background: isSelected
+                          ? "rgba(196, 92, 53, 0.12)"
+                          : "var(--sunken)",
+                        border: isSelected
+                          ? "2px solid var(--terracotta)"
+                          : "1px solid var(--border)",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        textAlign: "left",
+                        position: "relative",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            color: isSelected
+                              ? "var(--terracotta)"
+                              : "var(--foreground)",
+                          }}
+                        >
+                          {opt.size}
+                        </span>
+                        {opt.savingsLabel && (
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              fontWeight: 700,
+                              background: isSelected
+                                ? "var(--terracotta)"
+                                : "var(--olive)",
+                              color: "#ffffff",
+                              padding: "2px 4px",
+                              borderRadius: "2px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {opt.savingsLabel}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: isSelected ? "var(--gold)" : "var(--secondary)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        ₹{(opt.priceInMinorUnits / 100).toFixed(0)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {isOutOfStock ? (

@@ -282,20 +282,21 @@ export default function Home() {
                                 ₹{(product.priceInMinorUnits / 100).toFixed(0)}
                               </p>
                             )}
-                            {product.packSize && (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  color: "var(--secondary)",
-                                  background: "var(--sunken)",
-                                  border: "1px solid var(--border)",
-                                  padding: "2px 8px",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {product.packSize}
-                              </span>
-                            )}
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--secondary)",
+                                background: "var(--sunken)",
+                                border: "1px solid var(--border)",
+                                padding: "2px 8px",
+                                fontWeight: 500,
+                                borderRadius: "3px",
+                              }}
+                            >
+                              {(product.category || "").toLowerCase().includes("papad") || (product.title || "").toLowerCase().includes("papad")
+                                ? "200g · 400g"
+                                : "200g – 1kg"}
+                            </span>
                           </div>
                         </div>
                         <span className="product-arrow">

@@ -129,6 +129,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         items: items.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
+          packSize: item.product?.packSize || item.packSize || null,
+          unitPriceInMinorUnits: item.product?.priceInMinorUnits || item.unitPriceInMinorUnits || null,
         })),
       };
 

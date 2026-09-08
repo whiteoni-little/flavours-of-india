@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "../db";
 import { getSupabaseAdmin, isSupabaseConfigured } from "../db/supabaseClient";
+import { calculateVariantPrice } from "../../shared/packSizes";
 
 export const publicCheckoutRouter = Router();
 
@@ -28,7 +29,7 @@ async function syncOrderToGoogleSheet(order: any) {
 
   try {
     const itemsSummary = (order.items || [])
-      .map((i: any) => `${i.productTitleSnapshot || i.title} x ${i.quantity}`)
+      .map((i: any) => `${i.productTitleSnapshot || i.title || "Item"}${i.packSizeSnapshot ? ` (${i.packSizeSnapshot})` : ""} x ${i.quantity}`)
       .join(", ");
 
     const payload = {
@@ -84,6 +85,8 @@ const checkoutSchema = z.object({
       z.object({
         productId: z.string(),
         quantity: z.number().int().positive(),
+        packSize: z.string().nullable().optional(),
+        unitPriceInMinorUnits: z.number().int().positive().nullable().optional(),
       })
     )
     .min(1, "At least one item is required for checkout"),
@@ -123,14 +126,18 @@ publicCheckoutRouter.post("/", async (req, res) => {
         });
       }
 
-      const unitPrice = product.priceInMinorUnits || 0;
+      // Calculate unit price according to selected pack size variant (e.g. 400 gm Papad = ₹190)
+      const chosenPackSize = item.packSize || product.packSize || null;
+      const unitPrice = chosenPackSize
+        ? calculateVariantPrice(product, chosenPackSize)
+        : (product.priceInMinorUnits || 0);
       const subtotal = unitPrice * item.quantity;
       calculatedSubtotal += subtotal;
 
       itemSnapshots.push({
         productId: product.id,
         productTitleSnapshot: product.title,
-        packSizeSnapshot: product.packSize || null,
+        packSizeSnapshot: chosenPackSize,
         unitPriceInMinorUnits: unitPrice,
         quantity: item.quantity,
         subtotalInMinorUnits: subtotal,

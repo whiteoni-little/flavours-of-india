@@ -17,6 +17,7 @@ export interface CartItem {
   cartId: string;
   productId: string;
   quantity: number;
+  packSize?: string | null;
   unitPriceInMinorUnits: number | null;
   product?: CartProduct;
 }
@@ -115,7 +116,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const productIds = Array.from(new Set(items.map(i => i.productId)));
       const { data, error } = await supabase
         .from("products")
-        .select("id, title, slug, price_in_minor_units, currency, category, product_images(*)")
+        .select("id, title, slug, price_in_minor_units, currency, category, pack_size, product_images(*)")
         .in("id", productIds);
 
       if (!error && data && data.length > 0) {
@@ -126,14 +127,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const images = p.product_images || [];
           return {
             ...item,
-            unitPriceInMinorUnits: p.price_in_minor_units ?? item.unitPriceInMinorUnits,
             product: {
               id: p.id,
               title: p.title,
               slug: p.slug,
-              priceInMinorUnits: p.price_in_minor_units,
+              priceInMinorUnits: item.unitPriceInMinorUnits ?? p.price_in_minor_units,
               currency: p.currency || "INR",
               category: p.category,
+              packSize: item.product?.packSize || p.pack_size,
               primaryImage: images[0]?.public_url || item.product?.primaryImage,
             },
           };
@@ -152,6 +153,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   ): Promise<boolean> => {
     try {
       let product: CartProduct | undefined = undefined;
+      const targetPackSize = productDetails?.packSize || null;
 
       if (productDetails && productDetails.title) {
         product = {
@@ -161,13 +163,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           priceInMinorUnits: productDetails.priceInMinorUnits ?? null,
           currency: productDetails.currency || "INR",
           category: productDetails.category || "Pantry",
+          packSize: targetPackSize,
           primaryImage: productDetails.primaryImage,
         };
       } else {
         // Fetch product info directly from Supabase
         const { data } = await supabase
           .from("products")
-          .select("id, title, slug, price_in_minor_units, currency, category, product_images(*)")
+          .select("id, title, slug, price_in_minor_units, pack_size, currency, category, product_images(*)")
           .eq("id", productId)
           .maybeSingle();
 
@@ -180,13 +183,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             priceInMinorUnits: data.price_in_minor_units,
             currency: data.currency || "INR",
             category: data.category,
+            packSize: targetPackSize || data.pack_size,
             primaryImage: images[0]?.public_url,
           };
         }
       }
 
-      const existingIndex = items.findIndex(i => i.productId === productId);
+      const existingIndex = items.findIndex(
+        i => i.productId === productId && (i.product?.packSize || null) === targetPackSize
+      );
       let newItems: CartItem[];
+
+      const unitPrice = productDetails?.priceInMinorUnits ?? product?.priceInMinorUnits ?? null;
 
       if (existingIndex >= 0) {
         newItems = items.map((item, idx) => {
@@ -194,6 +202,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             return {
               ...item,
               quantity: item.quantity + quantity,
+              unitPriceInMinorUnits: unitPrice ?? item.unitPriceInMinorUnits,
               product: product || item.product,
             };
           }
@@ -205,7 +214,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           cartId: "local_cart",
           productId,
           quantity,
-          unitPriceInMinorUnits: product?.priceInMinorUnits ?? null,
+          unitPriceInMinorUnits: unitPrice,
           product,
         };
         newItems = [...items, newItem];
