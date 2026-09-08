@@ -36,12 +36,14 @@ import type {
   UserRole,
 } from "./schema";
 
+import { createRequire } from "module";
+
 // Dynamically load SQLite only when running locally, avoiding serverless native addon crashes
 let DatabaseDriver: any = null;
-if (typeof process !== "undefined" && !process.env.VERCEL) {
+if (typeof process !== "undefined" && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    DatabaseDriver = require("better-sqlite3");
+    const esmRequire = createRequire(import.meta.url);
+    DatabaseDriver = esmRequire("better-sqlite3");
   } catch {
     DatabaseDriver = null;
   }

@@ -7,6 +7,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { authFetch, uploadProductImageDirect } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface ProductImage {
   id?: string;
@@ -142,64 +144,43 @@ export default function AdminProductModal({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      // If editing existing product, upload directly to backend
-      if (product?.id) {
-        try {
-          const presignRes = await fetch(
-            `/api/admin/products/${product.id}/images/presign`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                filename: file.name,
-                contentType: file.type,
-              }),
-            }
-          );
+      // 1. Direct Supabase Storage Upload (Primary)
+      const uploadResult = await uploadProductImageDirect(file, product?.id);
 
-          if (!presignRes.ok) throw new Error("Could not get upload URL");
-          const presignData = await presignRes.json();
-
-          if (presignData.method === "PUT") {
-            await fetch(presignData.uploadUrl, {
-              method: "PUT",
-              headers: { "Content-Type": file.type },
-              body: file,
-            });
-          } else {
-            // Local fallback upload
-            const formData = new FormData();
-            formData.append("file", file);
-            await fetch(presignData.uploadUrl, {
-              method: "POST",
-              body: formData,
-            });
-          }
-
-          const completeRes = await fetch(
+      if (uploadResult.success && uploadResult.publicUrl) {
+        // If editing existing product, attach record to product
+        if (product?.id) {
+          const compRes = await authFetch(
             `/api/admin/products/${product.id}/images/complete`,
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                storageKey: presignData.storageKey,
-                publicUrl: presignData.publicUrl,
+                storageKey: uploadResult.storagePath || uploadResult.publicUrl,
+                publicUrl: uploadResult.publicUrl,
                 altText: `${title || "Product"} image`,
                 sortOrder: images.length,
               }),
             }
           );
-
-          if (completeRes.ok) {
-            const savedImage = await completeRes.json();
-            setImages(prev => [...prev, savedImage]);
+          if (compRes.ok && compRes.data) {
+            setImages(prev => [...prev, compRes.data]);
+            continue;
           }
-        } catch (err: any) {
-          console.error("Image upload failed:", err);
-          setErrorMessage("Failed to upload image: " + err.message);
         }
+
+        // Add to local images state with real CDN URL
+        setImages(prev => [
+          ...prev,
+          {
+            storageKey: uploadResult.storagePath || uploadResult.publicUrl!,
+            publicUrl: uploadResult.publicUrl!,
+            altText: `${title || "Product"} image`,
+            sortOrder: prev.length,
+            file,
+          },
+        ]);
       } else {
-        // For new product creation: create local preview object and upload during submit or handle preview
+        // Fallback to local DataURL preview
         const reader = new FileReader();
         reader.onload = () => {
           const previewUrl = reader.result as string;
@@ -225,7 +206,7 @@ export default function AdminProductModal({
   const handleRemoveImage = async (index: number, img: ProductImage) => {
     if (product?.id && img.id) {
       try {
-        await fetch(`/api/admin/products/${product.id}/images/${img.id}`, {
+        await authFetch(`/api/admin/products/${product.id}/images/${img.id}`, {
           method: "DELETE",
         });
       } catch (err) {
@@ -288,76 +269,57 @@ export default function AdminProductModal({
         shelfLife: shelfLife.trim() || null,
       };
 
-      let res: Response;
-      let savedProduct: any;
+      let result = isEditing
+        ? await authFetch(`/api/admin/products/${product!.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          })
+        : await authFetch("/api/admin/products", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
 
-      if (isEditing) {
-        res = await fetch(`/api/admin/products/${product!.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        savedProduct = await res.json();
-      } else {
-        res = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        savedProduct = await res.json();
-
-        // Upload any pending new files for this new product
-        if (res.ok && savedProduct?.id && images.length > 0) {
-          for (let i = 0; i < images.length; i++) {
-            const img = images[i];
-            if (img.file) {
-              try {
-                const presignRes = await fetch(
-                  `/api/admin/products/${savedProduct.id}/images/presign`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      filename: img.file.name,
-                      contentType: img.file.type,
-                    }),
-                  }
-                );
-                if (presignRes.ok) {
-                  const presignData = await presignRes.json();
-                  const formData = new FormData();
-                  formData.append("file", img.file);
-                  await fetch(presignData.uploadUrl, {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  await fetch(
-                    `/api/admin/products/${savedProduct.id}/images/complete`,
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        storageKey: presignData.storageKey,
-                        publicUrl: presignData.publicUrl,
-                        altText: `${title} image`,
-                        sortOrder: i,
-                      }),
-                    }
-                  );
-                }
-              } catch (e) {
-                console.error("Error attaching image to new product:", e);
-              }
-            }
-          }
+      if (!result.ok) {
+        const errorMsg = result.error || "Failed to save product";
+        if (errorMsg.includes("schema cache") || errorMsg.includes("relation") || errorMsg.includes("table")) {
+          throw new Error("Supabase tables not initialized. Please execute the SQL migration in your Supabase SQL Editor.");
         }
+        throw new Error(errorMsg);
       }
 
-      if (!res.ok) {
-        throw new Error(
-          savedProduct.message || savedProduct.error || "Failed to save product"
-        );
+      const savedProduct = result.data;
+
+      // Upload and link any newly attached images for this product
+      if (savedProduct?.id && images.length > 0) {
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i];
+          let publicUrl = img.publicUrl;
+          let storagePath = img.storageKey;
+
+          // If it's a local File not yet uploaded to Supabase
+          if (img.file && (!publicUrl || publicUrl.startsWith("data:"))) {
+            const upRes = await uploadProductImageDirect(img.file, savedProduct.id);
+            if (upRes.success && upRes.publicUrl) {
+              publicUrl = upRes.publicUrl;
+              storagePath = upRes.storagePath || publicUrl;
+            }
+          }
+
+          if (publicUrl && !publicUrl.startsWith("data:") && !img.id) {
+            await authFetch(
+              `/api/admin/products/${savedProduct.id}/images/complete`,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  storagePath,
+                  publicUrl,
+                  altText: `${title} image`,
+                  sortOrder: i,
+                }),
+              }
+            );
+          }
+        }
       }
 
       onSaved();

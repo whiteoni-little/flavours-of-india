@@ -15,6 +15,7 @@ import AdminProductModal, {
   type AdminProductData,
 } from "@/components/AdminProductModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
+import { authFetch } from "@/lib/api";
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([]);
@@ -47,12 +48,11 @@ export default function AdminProducts() {
       if (selectedStock !== "all") params.set("stockStatus", selectedStock);
       params.set("pageSize", "50");
 
-      const res = await fetch(`/api/admin/products?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-        setTotal(data.total || 0);
-        setCategories(data.categories || []);
+      const result = await authFetch(`/api/admin/products?${params.toString()}`);
+      if (result.ok && result.data) {
+        setProducts(result.data.products || []);
+        setTotal(result.data.total || 0);
+        setCategories(result.data.categories || []);
       }
     } catch (err) {
       console.error("Error fetching admin products:", err);
@@ -82,10 +82,10 @@ export default function AdminProducts() {
     if (!deletingProduct) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/admin/products/${deletingProduct.id}`, {
+      const result = await authFetch(`/api/admin/products/${deletingProduct.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
+      if (result.ok) {
         setDeletingProduct(null);
         fetchProducts();
       }

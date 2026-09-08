@@ -6,19 +6,24 @@ import { requireAdminAuth } from "../auth";
 
 export const localStorageRouter = Router();
 
-const storageDir = path.resolve(
-  process.cwd(),
-  "client",
-  "public",
-  "manus-storage"
-);
-if (!fs.existsSync(storageDir)) {
-  fs.mkdirSync(storageDir, { recursive: true });
+const storageDir = process.env.VERCEL
+  ? path.join("/tmp", "manus-storage")
+  : path.resolve(process.cwd(), "client", "public", "manus-storage");
+
+function getStorageDir() {
+  try {
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+    return storageDir;
+  } catch {
+    return "/tmp";
+  }
 }
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, storageDir);
+    cb(null, getStorageDir());
   },
   filename: (req, _file, cb) => {
     const key = decodeURIComponent(
