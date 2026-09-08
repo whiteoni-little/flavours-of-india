@@ -148,22 +148,33 @@ export default function AdminProductModal({
       const uploadResult = await uploadProductImageDirect(file, product?.id);
 
       if (uploadResult.success && uploadResult.publicUrl) {
-        // If editing existing product, attach record to product
+        // If editing existing product, attach record to product directly in Supabase
         if (product?.id) {
-          const compRes = await authFetch(
-            `/api/admin/products/${product.id}/images/complete`,
-            {
-              method: "POST",
-              body: JSON.stringify({
-                storageKey: uploadResult.storagePath || uploadResult.publicUrl,
-                publicUrl: uploadResult.publicUrl,
-                altText: `${title || "Product"} image`,
-                sortOrder: images.length,
-              }),
-            }
-          );
-          if (compRes.ok && compRes.data) {
-            setImages(prev => [...prev, compRes.data]);
+          const { data: imgData } = await supabase
+            .from("product_images")
+            .insert([
+              {
+                product_id: product.id,
+                storage_path: uploadResult.storagePath || uploadResult.publicUrl,
+                public_url: uploadResult.publicUrl,
+                alt_text: `${title || "Product"} image`,
+                sort_order: images.length,
+              },
+            ])
+            .select()
+            .single();
+
+          if (imgData) {
+            setImages(prev => [
+              ...prev,
+              {
+                id: imgData.id,
+                storageKey: imgData.storage_path,
+                publicUrl: imgData.public_url,
+                altText: imgData.alt_text,
+                sortOrder: imgData.sort_order,
+              },
+            ]);
             continue;
           }
         }
@@ -204,11 +215,9 @@ export default function AdminProductModal({
   };
 
   const handleRemoveImage = async (index: number, img: ProductImage) => {
-    if (product?.id && img.id) {
+    if (img.id) {
       try {
-        await authFetch(`/api/admin/products/${product.id}/images/${img.id}`, {
-          method: "DELETE",
-        });
+        await supabase.from("product_images").delete().eq("id", img.id);
       } catch (err) {
         console.error("Failed to delete image:", err);
       }
@@ -297,16 +306,9 @@ export default function AdminProductModal({
           .single();
 
         if (error) {
-          // Fallback to authFetch API
-          const result = await authFetch(`/api/admin/products/${product!.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          });
-          if (!result.ok) throw new Error(result.error || error.message);
-          savedProduct = result.data;
-        } else {
-          savedProduct = data;
+          throw new Error(error.message || "Failed to update product");
         }
+        savedProduct = data;
       } else {
         const { data, error } = await supabase
           .from("products")
@@ -315,16 +317,12 @@ export default function AdminProductModal({
           .single();
 
         if (error) {
-          // Fallback to authFetch API
-          const result = await authFetch("/api/admin/products", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          if (!result.ok) throw new Error(result.error || error.message);
-          savedProduct = result.data;
-        } else {
-          savedProduct = data;
+          if (error.message.includes("unique") || error.message.includes("slug")) {
+            throw new Error(`A product with the slug '${slug}' already exists. Please choose a different title or slug.`);
+          }
+          throw new Error(error.message || "Failed to create product");
         }
+        savedProduct = data;
       }
 
       if (!savedProduct?.id) {
@@ -349,7 +347,7 @@ export default function AdminProductModal({
 
           if (publicUrl && !publicUrl.startsWith("data:") && !img.id) {
             // Write directly to Supabase product_images table
-            const { error: imgErr } = await supabase.from("product_images").insert([
+            await supabase.from("product_images").insert([
               {
                 product_id: savedProduct.id,
                 storage_path: storagePath || publicUrl,
@@ -358,22 +356,6 @@ export default function AdminProductModal({
                 sort_order: i,
               },
             ]);
-
-            if (imgErr) {
-              // Fallback to API complete
-              await authFetch(
-                `/api/admin/products/${savedProduct.id}/images/complete`,
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-                    storagePath,
-                    publicUrl,
-                    altText: `${title} image`,
-                    sortOrder: i,
-                  }),
-                }
-              );
-            }
           }
         }
       }
